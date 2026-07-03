@@ -1,0 +1,26 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+crash.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+*.egg-info/
+
+# Kubernetes / Helm
+*.decrypted.yaml
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
