@@ -1,0 +1,67 @@
+# Values for the official jenkinsci/jenkins Helm chart.
+# Install order matters — see the Chapter 5 guide. This avoids every
+# failure mode hit on ShopFlow: no deprecated admin key, PVC binds
+# correctly because gp3 StorageClass + EBS CSI driver exist first,
+# and the ServiceAccount is created BY this chart (not pre-created),
+# avoiding the ServiceAccount-conflict error.
+
+controller:
+  serviceAccount:
+    create: true
+    name: jenkins
+
+  # NOTE: controller.adminUser / controller.adminPassword is the
+  # supported way to set the initial login — the old
+  # controller.admin.* key some older guides reference is deprecated
+  # and silently ignored on recent chart versions.
+  admin:
+    username: "admin"
+    adminPassword: "cB46xiIYzNAgW-1IniciEw"
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+  serviceType: ClusterIP
+
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+    - credentials-binding
+    - docker-workflow
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 20Gi
+
+# Pod template for build agents: the "docker" container runs Docker-in-Docker
+# so pipeline stages can `docker build`/`docker push` without a host Docker
+# socket. Matches the well-understood, widely-used DinD pattern.
+agent:
+  enabled: true
+  containerCap: 3
+  podTemplates:
+    docker: |
+      - name: docker-agent
+        label: docker-agent
+        containers:
+        - name: docker
+          image: docker:24-dind
+          privileged: true
+          resourceRequestCpu: "500m"
+          resourceRequestMemory: "1Gi"
+          resourceLimitCpu: "1"
+          resourceLimitMemory: "2Gi"
+        - name: kubectl-helm
+          image: alpine/k8s:1.30.2
+          command: "sleep"
+          args: "99d"
+          resourceRequestCpu: "200m"
+          resourceRequestMemory: "256Mi"

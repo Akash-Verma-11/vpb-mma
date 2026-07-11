@@ -1,0 +1,12 @@
+# EKS's default StorageClass is gp2. This gives Jenkins' PVC (its home
+# directory — job history, plugins, config) gp3 instead: better baseline
+# throughput per dollar, and confirms the EBS CSI driver from Chapter 1
+# is actually wired up before Jenkins needs it.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3

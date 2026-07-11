@@ -1,0 +1,83 @@
+// VPB-MMA CI/CD pipeline
+// Builds all 4 service images tagged with the short git commit SHA,
+// pushes them to DockerHub, then helm-upgrades the cluster to that tag.
+//
+// Runs on a "docker-agent" pod (see values-jenkins.yaml) which has a
+// Docker-in-Docker sidecar for building/pushing, and a kubectl+helm
+// sidecar for the deploy step.
+
+pipeline {
+    agent { label 'docker-agent' }
+
+    environment {
+        DOCKERHUB_CREDS = credentials('dockerhub-creds')   // Jenkins credential ID, set up in Step 4 of the guide
+        DOCKERHUB_USER  = "${DOCKERHUB_CREDS_USR}"
+        IMAGE_TAG       = "${env.GIT_COMMIT.take(7)}"
+        NAMESPACE       = "vpb-mma"
+        RELEASE_NAME    = "vpb-mma"
+        CHART_PATH      = "helm/vpb-mma"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build & Push Images') {
+            steps {
+                container('docker') {
+                    sh '''
+                        echo "$DOCKERHUB_CREDS_PSW" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+                        for svc in web-frontend catalog-service customer-service order-service; do
+                          echo "=== Building $svc:$IMAGE_TAG ==="
+                          docker build -t $DOCKERHUB_USER/vpbmma-$svc:$IMAGE_TAG services/$svc
+                          docker push $DOCKERHUB_USER/vpbmma-$svc:$IMAGE_TAG
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                container('kubectl-helm') {
+                    sh '''
+                        echo "=== Deploying image tag $IMAGE_TAG to $NAMESPACE ==="
+                        helm upgrade --install $RELEASE_NAME $CHART_PATH \
+                          --namespace $NAMESPACE \
+                          --set dockerhubUser=$DOCKERHUB_USER \
+                          --set imageTag=$IMAGE_TAG \
+                          --reuse-values \
+                          --wait --timeout 5m
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Rollout') {
+            steps {
+                container('kubectl-helm') {
+                    sh '''
+                        for svc in web-frontend catalog-service customer-service order-service; do
+                          echo "=== Rollout status: $svc ==="
+                          kubectl rollout status deployment/$svc -n $NAMESPACE --timeout=120s
+                        done
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ VPB-MMA deployed successfully — image tag ${IMAGE_TAG}"
+        }
+        failure {
+            echo "❌ Pipeline failed — check the stage logs above. Deployment was not fully rolled out."
+        }
+    }
+}
