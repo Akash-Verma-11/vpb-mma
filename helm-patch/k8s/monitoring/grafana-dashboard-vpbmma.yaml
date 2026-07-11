@@ -1,0 +1,133 @@
+# ConfigMap wrapping a Grafana dashboard JSON. The `grafana_dashboard: "1"`
+# label is what the kube-prometheus-stack sidecar (enabled in
+# values-kube-prometheus-stack.yaml) watches for — it auto-imports any
+# ConfigMap with this label, no manual "Import Dashboard" click needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpb-mma-overview-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  vpb-mma-overview.json: |
+    {
+      "title": "VPB-MMA \u2014 Service Overview",
+      "uid": "vpb-mma-overview",
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request Rate by Service",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(flask_http_request_total{namespace=\"vpb-mma\"}[5m])) by (app)",
+              "legendFormat": "{{app}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "5xx Error Rate by Service",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(flask_http_request_total{namespace=\"vpb-mma\", status=~\"5..\"}[5m])) by (app)",
+              "legendFormat": "{{app}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "p95 Latency by Service",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"vpb-mma\"}[5m])) by (le, app))",
+              "legendFormat": "{{app}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Pod Restarts (last 15m)",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"vpb-mma\"}[15m])",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "RDS Active Connections",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+          },
+          "targets": [
+            {
+              "expr": "pg_stat_database_numbackends{datname=\"vpbmma\"}",
+              "legendFormat": "connections"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "HPA Current vs Max Replicas",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+          },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"vpb-mma\"}",
+              "legendFormat": "{{horizontalpodautoscaler}} current"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"vpb-mma\"}",
+              "legendFormat": "{{horizontalpodautoscaler}} max"
+            }
+          ]
+        }
+      ]
+    }

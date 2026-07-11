@@ -1,0 +1,91 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vpb-mma-alerts
+  namespace: vpb-mma
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: vpb-mma.pods
+      rules:
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="vpb-mma"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: "Container {{ $labels.container }} in {{ $labels.pod }} has restarted more than 3 times in 15 minutes."
+
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{namespace="vpb-mma", condition="true"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} not ready"
+            description: "Pod {{ $labels.pod }} in vpb-mma has not been Ready for 10 minutes."
+
+    - name: vpb-mma.http
+      rules:
+        - alert: HighHttp5xxRate
+          expr: |
+            sum(rate(flask_http_request_total{namespace="vpb-mma", status=~"5.."}[5m])) by (app)
+            /
+            sum(rate(flask_http_request_total{namespace="vpb-mma"}[5m])) by (app)
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High 5xx rate on {{ $labels.app }}"
+            description: "More than 5% of requests to {{ $labels.app }} have returned 5xx over the last 5 minutes."
+
+        - alert: HighRequestLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(flask_http_request_duration_seconds_bucket{namespace="vpb-mma"}[5m])) by (le, app)
+            ) > 1.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p95 latency on {{ $labels.app }}"
+            description: "p95 request latency for {{ $labels.app }} has exceeded 1.5s for 10 minutes."
+
+    - name: vpb-mma.database
+      rules:
+        - alert: PostgresExporterDown
+          expr: up{job="postgres-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "postgres-exporter is down"
+            description: "Prometheus can't scrape postgres-exporter — RDS visibility is lost. Could also indicate RDS itself is unreachable."
+
+        - alert: HighDbConnections
+          expr: pg_stat_database_numbackends{datname="vpbmma"} > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High RDS connection count"
+            description: "vpbmma database has more than 80 active connections for 10 minutes — check for connection leaks."
+
+    - name: vpb-mma.scaling
+      rules:
+        - alert: HPAMaxedOut
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="vpb-mma"}
+            >=
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="vpb-mma"}
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.horizontalpodautoscaler }} is maxed out"
+            description: "{{ $labels.horizontalpodautoscaler }} has been at its max replica count for 15 minutes — consider raising maxReplicas."

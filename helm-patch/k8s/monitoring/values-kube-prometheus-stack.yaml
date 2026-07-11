@@ -1,0 +1,49 @@
+# Values for prometheus-community/kube-prometheus-stack.
+# serviceMonitorSelectorNilUsesHelmValues: false is the key setting — it
+# tells Prometheus to pick up ServiceMonitors from ANY namespace/label,
+# not just ones matching this Helm release. Without it, the vpb-mma
+# ServiceMonitors from the app chart would be silently ignored.
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+grafana:
+  adminPassword: "REPLACE_ME_before_install"
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 5Gi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard   # ConfigMaps with this label auto-load as dashboards
+
+alertmanager:
+  config:
+    route:
+      receiver: 'default-receiver'
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: 'default-receiver'
+        # Fill in ONE of these before relying on alerts — see Chapter 6 guide Step 4.
+        # email_configs:
+        #   - to: 'you@example.com'
+        #     send_resolved: true
+        # slack_configs:
+        #   - api_url: 'https://hooks.slack.com/services/REPLACE/ME/WEBHOOK'
+        #     channel: '#vpb-mma-alerts'
+        #     send_resolved: true
