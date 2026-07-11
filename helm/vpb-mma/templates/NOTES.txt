@@ -1,0 +1,13 @@
+VPB-MMA has been deployed to namespace {{ .Values.namespace }}.
+
+1. Check pod status:
+     kubectl get pods -n {{ .Values.namespace }}
+
+2. Get the ALB hostname (can take 2-3 minutes to appear):
+     kubectl get ingress vpb-mma-ingress -n {{ .Values.namespace }}
+
+3. Point your domain at that ALB hostname with a Route53 Alias A record
+   (see the Chapter 4 guide, Step 6).
+
+4. Once DNS resolves, visit:
+     https://{{ .Values.domainName }}

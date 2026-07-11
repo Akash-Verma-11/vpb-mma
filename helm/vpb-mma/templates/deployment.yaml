@@ -1,0 +1,76 @@
+{{- range $name, $svc := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app: {{ $name }}
+    {{- include "vpb-mma.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $svc.port }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: {{ $name }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.dockerhubUser }}/vpbmma-{{ $name }}:{{ $.Values.imageTag }}"
+          ports:
+            - containerPort: {{ $svc.port }}
+          {{- if ne $name "web-frontend" }}
+          envFrom:
+            - secretRef:
+                name: db-credentials
+          {{- end }}
+          env:
+            - name: PORT
+              value: "{{ $svc.port }}"
+            {{- range $k, $v := $svc.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if eq $name "web-frontend" }}
+            - name: CATALOG_SERVICE_URL
+              value: "http://catalog-service.{{ $.Values.namespace }}.svc.cluster.local:5001"
+            - name: CUSTOMER_SERVICE_URL
+              value: "http://customer-service.{{ $.Values.namespace }}.svc.cluster.local:5002"
+            - name: ORDER_SERVICE_URL
+              value: "http://order-service.{{ $.Values.namespace }}.svc.cluster.local:5003"
+            {{- end }}
+            {{- if eq $name "order-service" }}
+            - name: CATALOG_SERVICE_URL
+              value: "http://catalog-service.{{ $.Values.namespace }}.svc.cluster.local:5001"
+            {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ $svc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ $svc.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+{{- end }}

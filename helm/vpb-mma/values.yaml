@@ -1,0 +1,55 @@
+# ==========================================================================
+# Fill in the REPLACE_ME values from Chapter 1's `terraform output` before
+# running `helm install`. See Chapter 4 guide for the exact commands.
+# ==========================================================================
+
+namespace: vpb-mma
+
+dockerhubUser: "akash11v"     # your DockerHub username
+imageTag: "v1"
+
+#domainName: "vpbmma.com"                 # your real domain (Chapter 1 §5)
+#acmCertificateArn: "REPLACE_ME"          # terraform output acm_certificate_arn
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+services:
+  web-frontend:
+    port: 5000
+    replicas: 2
+    resources:
+      requests: { cpu: "100m", memory: "128Mi" }
+      limits:   { cpu: "500m", memory: "256Mi" }
+    env:
+      SECRET_KEY: "9a1305c1d8ab39a5794a6353d7210b19cba64dd812916475c77cdabbcadf42b4"
+    roleArn: "arn:aws:iam::282538118471:role/vpb-mma-dev-web-frontend"
+
+  catalog-service:
+    port: 5001
+    replicas: 2
+    resources:
+      requests: { cpu: "100m", memory: "128Mi" }
+      limits:   { cpu: "500m", memory: "256Mi" }
+    env: {}
+    roleArn: "arn:aws:iam::282538118471:role/vpb-mma-dev-catalog-service"
+
+  customer-service:
+    port: 5002
+    replicas: 2
+    resources:
+      requests: { cpu: "100m", memory: "128Mi" }
+      limits:   { cpu: "500m", memory: "256Mi" }
+    env: {}
+    roleArn: "arn:aws:iam::282538118471:role/vpb-mma-dev-customer-service"
+
+  order-service:
+    port: 5003
+    replicas: 2
+    resources:
+      requests: { cpu: "150m", memory: "192Mi" }
+      limits:   { cpu: "600m", memory: "384Mi" }
+    env: {}
+    roleArn: "arn:aws:iam::282538118471:role/vpb-mma-dev-order-service"
