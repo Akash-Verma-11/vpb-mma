@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Track Your Order</h2>
+  <form method="get" action="{{ url_for('track_result') }}">
+    <label>Contact Number</label>
+    <input type="tel" name="phone_number" value="{{ phone or '' }}" required>
+    <label>Order ID</label>
+    <input type="text" name="order_id" value="{{ order_id or '' }}" required>
+    <button type="submit">Track</button>
+  </form>
+
+  {% if error %}
+    <div class="flash">{{ error }}</div>
+  {% endif %}
+
+  {% if order %}
+    <h3 style="margin-top:24px;">Order {{ order.order_id }}</h3>
+    <p>Current status: <span class="status-badge">{{ order.status }}</span></p>
+    <p>Total: ₹{{ "%.2f"|format(order.total_amount) }}</p>
+    <h4>Status History</h4>
+    <table>
+      <tr><th>Status</th><th>Changed At</th></tr>
+      {% for h in order.status_history %}
+        <tr><td>{{ h.status }}</td><td>{{ h.changed_at }}</td></tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+{% endblock %}

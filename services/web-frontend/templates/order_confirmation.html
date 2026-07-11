@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>✅ Order Placed!</h2>
+  <p>Thanks — your order has been received.</p>
+  <table>
+    <tr><th>Order ID</th><td>{{ order.order_id }}</td></tr>
+    <tr><th>Status</th><td><span class="status-badge">{{ order.status }}</span></td></tr>
+    <tr><th>Total</th><td>₹{{ "%.2f"|format(order.total_amount) }}</td></tr>
+  </table>
+  <p style="margin-top:16px;">
+    Save your Order ID above along with your contact number ({{ phone }}) —
+    you'll need both to <a href="{{ url_for('track_form') }}">track your order</a>.
+  </p>
+{% endblock %}

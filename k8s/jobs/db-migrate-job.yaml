@@ -1,0 +1,51 @@
+# Runs all SQL files in /migrations (sorted by filename) against the RDS
+# instance, skipping any already recorded in schema_migrations. This Job
+# is applied fresh each time you have new migrations — delete-and-reapply
+# is expected (Jobs aren't meant to be updated in place).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: vpb-mma
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: db-credentials
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              export PGPASSWORD="$DB_PASSWORD"
+              echo "Connecting to $DB_HOST:$DB_PORT/$DB_NAME as $DB_USER"
+
+              for f in $(ls /migrations/*.sql | sort); do
+                fname=$(basename "$f")
+                already=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc \
+                  "SELECT 1 FROM schema_migrations WHERE filename = '$fname'" 2>/dev/null || echo "")
+                if [ "$already" = "1" ]; then
+                  echo "SKIP  $fname (already applied)"
+                else
+                  echo "APPLY $fname"
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
+                    "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT DO NOTHING;"
+                fi
+              done
+              echo "All migrations applied."
+      volumes:
+        - name: migrations
+          configMap:
+            name: db-migrations
+

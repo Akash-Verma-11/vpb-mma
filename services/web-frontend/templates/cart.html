@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Your Cart</h2>
+  {% if cart %}
+    <table>
+      <tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th><th></th></tr>
+      {% for pid, item in cart.items() %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>₹{{ "%.2f"|format(item.price) }}</td>
+          <td>₹{{ "%.2f"|format(item.price * item.quantity) }}</td>
+          <td>
+            <form method="post" action="{{ url_for('cart_remove') }}">
+              <input type="hidden" name="product_id" value="{{ pid }}">
+              <button type="submit">Remove</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    <p style="margin-top:16px;font-size:18px;"><strong>Total: ₹{{ "%.2f"|format(total) }}</strong></p>
+    <a class="btn" href="{{ url_for('checkout_form') }}">Proceed to Checkout</a>
+  {% else %}
+    <p>Your cart is empty. <a href="{{ url_for('home') }}">Continue shopping</a>.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+# Loads dummy catalog data. Meant to run ONCE against a freshly migrated,
+# empty database — re-running will duplicate stock_movements rows.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-seed
+  namespace: vpb-mma
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: db-credentials
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              export PGPASSWORD="$DB_PASSWORD"
+              psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
+                -f /seed/001_seed_dummy_data.sql
+              echo "Seed complete."
+      volumes:
+        - name: seed
+          configMap:
+            name: db-seed
+

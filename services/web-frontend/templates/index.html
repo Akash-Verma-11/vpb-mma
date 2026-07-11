@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Welcome to VPB-MMA</h2>
+  <p>Books and stationery, delivered. Browse below and add items to your cart.</p>
+
+  <div class="grid">
+    {% for p in products %}
+      <div class="card">
+        <h3>{{ p.name }}</h3>
+        {% if p.author %}<div class="author">by {{ p.author }}</div>{% endif %}
+        <div class="price">₹{{ "%.2f"|format(p.price) }}</div>
+        <p style="font-size:13px;color:#666;">In stock: {{ p.quantity_on_hand }}</p>
+        <form method="post" action="{{ url_for('cart_add') }}">
+          <input type="hidden" name="product_id" value="{{ p.product_id }}">
+          <input type="hidden" name="name" value="{{ p.name }}">
+          <input type="hidden" name="price" value="{{ p.price }}">
+          <button type="submit" {% if p.quantity_on_hand == 0 %}disabled{% endif %}>
+            {% if p.quantity_on_hand == 0 %}Out of stock{% else %}Add to Cart{% endif %}
+          </button>
+        </form>
+      </div>
+    {% else %}
+      <p>No products available right now.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

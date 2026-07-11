@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Checkout</h2>
+  <p>Enter your name and contact number to place the order. No password needed.</p>
+
+  <table style="margin-bottom:20px;">
+    {% for pid, item in cart.items() %}
+      <tr><td>{{ item.name }} × {{ item.quantity }}</td><td>₹{{ "%.2f"|format(item.price * item.quantity) }}</td></tr>
+    {% endfor %}
+    <tr><td><strong>Total</strong></td><td><strong>₹{{ "%.2f"|format(total) }}</strong></td></tr>
+  </table>
+
+  <form method="post" action="{{ url_for('checkout_submit') }}">
+    <label>Full Name</label>
+    <input type="text" name="name" required>
+    <label>Contact Number</label>
+    <input type="tel" name="phone_number" placeholder="e.g. 9876543210" required>
+    <button type="submit">Place Order</button>
+  </form>
+{% endblock %}
