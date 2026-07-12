@@ -8,9 +8,3 @@ Kubernetes, Jenkins CI/CD, and Prometheus/Grafana monitoring.
 - catalog-service
 - customer-service
 - order-service
-
-## Docs
-See `/docs` for the full project overview, architecture, and build chapters.
-
-## Status
-🚧 In progress — Chapter 0 (environment setup) complete.
